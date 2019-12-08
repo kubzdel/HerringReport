@@ -1,0 +1,160 @@
+---
+title: "Projekt z analizy danych"
+author: "Konrad Kubzdela"
+date: "25 listopada 2019"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+---
+```{r setup, include=FALSE}
+library(knitr)
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(GGally)
+library(caret)
+library(heatmaply)
+library(varhandle)
+library(tidyr)
+library(reshape2)
+library(corrplot)
+library(zoo)
+library(shiny)
+```
+# Biblioteki
+W projekcie zostały użyte następujące biblioteki
+```{r}
+installed.packages()[names(sessionInfo()$otherPkgs), "Version"]
+```
+# Powtarzalność wyników
+Kod zapewniający powtarzalność wyników przy tych samych danych
+```{r,include=TRUE}
+set.seed(22)
+knitr::opts_chunk$set(cache=T)
+```
+# Wczytanie danych
+Wszystkie dane wczytuję jako dane numeryczne. Pomijam pierwszą kolumnę zawierającą numer porządkowy rekordu. Znaki zapytania wczytuję jako NA.
+
+```{r}
+data <- read.table("sledzie.csv",header = TRUE,sep=',',na.strings = "?", colClasses=c("NULL", rep(c("numeric"),15)))
+```
+# Obłsuga brakujących wartości
+Najpierw sprawdzam jaki jest stosunek wierszy z brakującymi wartościami do wszystkich wierszy. Wynosi on ponad 20% dlatego nie będę ich pomijał i brakujące wartości zastąpię średnimi z kolumn.
+```{r}
+sum(is.na(data))/nrow(data)
+data<-na.aggregate(data)
+```
+#Podsumowanie danych
+Dane składają się z ponad 52 tysięcy wierszy. Wyliczam cechy statystyczne atrybutów.
+```{r}
+dim(data)
+summary(data)
+```
+#Rozkłąd atrybutów
+```{r}
+for (col in 1:ncol(data)) {
+   hist(data[,col],main = names(data[col]))
+}
+```
+
+#Korelacja
+Analizując macierz korelacji można wyłonić najbardziej skorelowane pary atrybutów. Są to chel1-lcop1, chel2-lcop2 oraz fbar-cumf. Mocno skorelowane dane wprowadzają niepotrzebną redundancję, dlatego w dalszej analizie wykluczam atrybuty lcop1,lcop2 oraz cumf. Pozbędę się także wiedzy o miesiącu, który jest cykliczny i wykazuje blisko zerową korelację z długością śledzia. Najbardziej skorelowany atrybut z długością to średnia temperatura wody przy powierzchni.
+```{r}
+ggcorr(data,label = TRUE,label_round = 1)
+data <- subset(data, select = -c(lcop1,lcop2,cumf,xmonth))
+```
+# Wizualizacja rozmiaru śledzia
+Dane pochodzą z ostatich 60 lat i są posortowane chronologicznie, dlatego podzielę je na 60 podzbiorów, a średnia z każdego podzbioru posłuży do wizualizacji rozmiaru śledzia. Oprócz interaktywnego wykresu do wizualizacji rozmiaru, rysuję wykres, na którym jeszcze lepiej widać negatywny trend zaczynający się mniej więcej 40 lat temu.
+```{r}
+herring_size<- split(data$length, (ceiling(seq_along(data$length)/(nrow(data)/60))))
+herring_size <- lapply(herring_size, function(x) Reduce(`+`, x)/length(x) )
+plot(seq(length(herring_size)),herring_size,type = "b",xlab="chunk")
+```
+
+```{r,echo = FALSE,cache=FALSE}
+ui<- (
+  
+  list(ui = fluidPage(
+    titlePanel("Rozmiar śledzia w zależności od czasu"),
+    sidebarLayout(
+      sidebarPanel(
+        sliderInput("slider", label = "", min = 1, max =length(herring_size) , value=1),
+        uiOutput('logo')
+      ),
+      mainPanel(
+        plotOutput("distPlot")
+      )
+    )
+  )))
+server <- function(input, output, session) {
+    output$logo <- renderUI({
+      img(src = "https://www.msc.org/images/default-source/msc-english/content-banner/fish-to-eat/herring.jpg?sfvrsn=d1da5a4c_4", width = as.integer(herring_size[input$slider])*10)
+    })
+  }
+shinyApp(ui,server)
+```
+# Model predykcyjny
+Dane dzielę na dwa zbiory w proporcji 80-20. Większy zbiór posłuży jako dane uczące i testowe w późniejsze 10-krotnej walidacji krzyżowej. Pozostałe 20% posłuży jako dane walidacyjne, na których zostanie oceniona ostateczna skuteczność modelu. Dodatkowo dane zostały wycentrowane oraz znormalizowane. Model wytrenuję przy użyciu metody extreme gradient boosting. Korzystam z domyślnego testowanie parametrów tej metody.
+```{r}
+inTraining <- 
+    createDataPartition(
+        # atrybut do stratyfikacji
+        y = data$length,
+        # procent w zbiorze uczącym
+        p = .8,
+        # chcemy indeksy a nie listę
+        list = FALSE)
+
+training <- data[ inTraining,]
+testing  <- data[-inTraining,]
+
+X_train = select(training, -length)
+y_train = training$length
+X_test = select(testing, -length)
+y_test = testing$length
+
+trcontrol = trainControl(
+  method = "cv",
+  number = 2,  
+  allowParallel = TRUE,
+  verboseIter = FALSE,
+  returnData = FALSE)
+
+model <- train(X_train,y_train,
+             method = "xgbTree",
+             preProcess = c('scale', 'center'),
+             trControl = trcontrol
+              )
+```
+
+Ostateczne wartośći RMSE i R2 dla wytrenowanego modelu i danych walidujących prezentują się następująco:
+```{r}
+pred <- predict(model, X_test)
+postResample(pred, testing$length)
+```
+
+# Analiza ważności atrybutów
+
+Analiza ważności atrybutów z wytrenowanego modelu sugeruje, że zdecydowanie najważniejszym czynnikiem wplywającym na rozmiar śledzia jest temperatura wody przy powierzchni wody. Ten atrybów jest dość silnie ujemnie skorelowany z długością śledzia. Oznacza to, że głównym powodem spadku długości śledzia w czasie był wzrost temperatury przy powierzchni wody.
+
+```{r}
+ggplot(varImp(model))
+```
+
+Potwierdzimy te przypuszczenia rysując jednocześnie jak zmieniały się te dwie wartości w czasie. W tym celu wyciągam średnie z dłuższych okresów dla temperatury przy powierzchi, analogicznie jak wcześniej dla długości śledzia.
+```{r}
+temp<- split(data$sst, (ceiling(seq_along(data$sst)/(nrow(data)/60))))
+temp <- lapply(temp, function(x) Reduce(`+`, x)/length(x) )
+year = seq(length(temp))
+df <- do.call(rbind, Map(data.frame, temp=temp, size=herring_size,year = year))
+ggplot(df, aes(year)) + 
+  geom_line(aes(y = temp)) 
+ggplot(df, aes(year)) + 
+  geom_line(aes(y = size)) 
+```
+
+Lustrzany obraz wykresów potwierdza stwierdzoną wcześniej ujemną korelację.
+
+#Wnioski
+Analiza statystyczna, wizualizacja danych oraz wytrenowanie modelu predykcyjnego pozwoliło potwierdzić spadek w rozmiarze śledzia na przestrzeni lat; określić moment, w którym ten trend nastąpił oraz co miało na niego największy wpływ. Zbadanie korealcji pomiędzy atrybutami pozwoliło usunąć z dalszej analizy mało znaczące atrybuty. 
