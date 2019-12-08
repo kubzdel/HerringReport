@@ -23,6 +23,7 @@ library(shiny)
 ```
 # Podsumowanie
 Analiza statystyczna, wizualizacja danych oraz wytrenowanie modelu predykcyjnego pozwoliło potwierdzić spadek w rozmiarze śledzia na przestrzeni lat; określić moment, w którym ten trend nastąpił oraz co miało na niego największy wpływ. W danych znajdowało się jednak wiele rekordów z pustymi wartościami, dlatego konieczne było rozważenie jak je konkretnie potraktować. Zbadanie korealcji pozwoliło usunąć z dalszej analizy mało znaczące atrybuty oraz oszacować, które z nich najbardziej wpływają na długość śledzia. Wytrenowanie modelu przy użyciu xgb wraz z preprocessingiem oraz dostrajaniem parametrów pozwoliło ostatecznie stwierdzić, co najbardziej przyczyniło się do spadku długości śledzia w ostatnich latach.
+
 # Biblioteki
 W projekcie zostały użyte następujące biblioteki
 ```{r}
@@ -41,7 +42,7 @@ Wszystkie dane wczytuję jako dane numeryczne. Pomijam pierwszą kolumnę zawier
 data <- read.table("sledzie.csv",header = TRUE,sep=',',na.strings = "?", colClasses=c("NULL", rep(c("numeric"),15)))
 ```
 # Obłsuga brakujących wartości
-Najpierw sprawdzam jaki jest stosunek wierszy z brakującymi wartościami do wszystkich wierszy. Wynosi on ponad 20% dlatego nie będę ich pomijał i brakujące wartości zastąpię średnimi z kolumn.
+Najpierw sprawdzam, jaki jest stosunek wierszy z brakującymi wartościami do wszystkich wierszy. Wynosi on ponad 20% dlatego nie będę ich pomijał i brakujące wartości zastąpię średnimi z kolumn.
 ```{r}
 sum(is.na(data))/nrow(data)
 data<-na.aggregate(data)
@@ -52,7 +53,7 @@ Dane składają się z ponad 52 tysięcy wierszy. Wyliczam cechy statystyczne at
 dim(data)
 summary(data)
 ```
-# Rozkłąd atrybutów
+# Rozkład atrybutów
 ```{r}
 for (col in 1:ncol(data)) {
    hist(data[,col],main = names(data[col]))

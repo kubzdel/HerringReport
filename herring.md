@@ -4,11 +4,12 @@ Konrad Kubzdela
 08 grudzień, 2019
 
 -   [Podsumowanie](#podsumowanie)
+-   [Biblioteki](#biblioteki)
 -   [Powtarzalność wyników](#powtarzalność-wyników)
 -   [Wczytanie danych](#wczytanie-danych)
 -   [Obłsuga brakujących wartości](#obłsuga-brakujących-wartości)
 -   [Podsumowanie danych](#podsumowanie-danych)
--   [Rozkłąd atrybutów](#rozkłąd-atrybutów)
+-   [Rozkład atrybutów](#rozkład-atrybutów)
 -   [Korelacja](#korelacja)
 -   [Wizualizacja rozmiaru śledzia](#wizualizacja-rozmiaru-śledzia)
 -   [Model predykcyjny](#model-predykcyjny)
@@ -17,7 +18,12 @@ Konrad Kubzdela
 Podsumowanie
 ============
 
-Analiza statystyczna, wizualizacja danych oraz wytrenowanie modelu predykcyjnego pozwoliło potwierdzić spadek w rozmiarze śledzia na przestrzeni lat; określić moment, w którym ten trend nastąpił oraz co miało na niego największy wpływ. W danych znajdowało się jednak wiele rekordów z pustymi wartościami, dlatego konieczne było rozważenie jak je konkretnie potraktować. Zbadanie korealcji pozwoliło usunąć z dalszej analizy mało znaczące atrybuty oraz oszacować, które z nich najbardziej wpływają na długość śledzia. Wytrenowanie modelu przy użyciu xgb wraz z preprocessingiem oraz dostrajaniem parametrów pozwoliło ostatecznie stwierdzić, co najbardziej przyczyniło się do spadku długości śledzia w ostatnich latach. \# Biblioteki W projekcie zostały użyte następujące biblioteki
+Analiza statystyczna, wizualizacja danych oraz wytrenowanie modelu predykcyjnego pozwoliło potwierdzić spadek w rozmiarze śledzia na przestrzeni lat; określić moment, w którym ten trend nastąpił oraz co miało na niego największy wpływ. W danych znajdowało się jednak wiele rekordów z pustymi wartościami, dlatego konieczne było rozważenie jak je konkretnie potraktować. Zbadanie korealcji pozwoliło usunąć z dalszej analizy mało znaczące atrybuty oraz oszacować, które z nich najbardziej wpływają na długość śledzia. Wytrenowanie modelu przy użyciu xgb wraz z preprocessingiem oraz dostrajaniem parametrów pozwoliło ostatecznie stwierdzić, co najbardziej przyczyniło się do spadku długości śledzia w ostatnich latach.
+
+Biblioteki
+==========
+
+W projekcie zostały użyte następujące biblioteki
 
 ``` r
 installed.packages()[names(sessionInfo()$otherPkgs), "Version"]
@@ -52,7 +58,7 @@ data <- read.table("sledzie.csv",header = TRUE,sep=',',na.strings = "?", colClas
 Obłsuga brakujących wartości
 ============================
 
-Najpierw sprawdzam jaki jest stosunek wierszy z brakującymi wartościami do wszystkich wierszy. Wynosi on ponad 20% dlatego nie będę ich pomijał i brakujące wartości zastąpię średnimi z kolumn.
+Najpierw sprawdzam, jaki jest stosunek wierszy z brakującymi wartościami do wszystkich wierszy. Wynosi on ponad 20% dlatego nie będę ich pomijał i brakujące wartości zastąpię średnimi z kolumn.
 
 ``` r
 sum(is.na(data))/nrow(data)
@@ -108,7 +114,7 @@ summary(data)
     ##  3rd Qu.:35.52   3rd Qu.: 9.000   3rd Qu.: 1.63000  
     ##  Max.   :35.61   Max.   :12.000   Max.   : 5.08000
 
-Rozkłąd atrybutów
+Rozkład atrybutów
 =================
 
 ``` r
@@ -198,7 +204,7 @@ postResample(pred, testing$length)
 ```
 
     ##      RMSE  Rsquared       MAE 
-    ## 1.1895059 0.4769302 0.9376172
+    ## 1.1897654 0.4766861 0.9377312
 
 Analiza ważności atrybutów
 ==========================
