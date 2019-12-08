@@ -1,11 +1,10 @@
 ---
 title: "Projekt z analizy danych"
 author: "Konrad Kubzdela"
-date: "25 listopada 2019"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
-  html_document:
-    toc: true
-    number_sections: true
+  github_document:
+    toc: yes
 ---
 ```{r setup, include=FALSE}
 library(knitr)
@@ -22,6 +21,8 @@ library(corrplot)
 library(zoo)
 library(shiny)
 ```
+# Podsumowanie
+Analiza statystyczna, wizualizacja danych oraz wytrenowanie modelu predykcyjnego pozwoliło potwierdzić spadek w rozmiarze śledzia na przestrzeni lat; określić moment, w którym ten trend nastąpił oraz co miało na niego największy wpływ. W danych znajdowało się jednak wiele rekordów z pustymi wartościami, dlatego konieczne było rozważenie jak je konkretnie potraktować. Zbadanie korealcji pozwoliło usunąć z dalszej analizy mało znaczące atrybuty oraz oszacować, które z nich najbardziej wpływają na długość śledzia. Wytrenowanie modelu przy użyciu xgb wraz z preprocessingiem oraz dostrajaniem parametrów pozwoliło ostatecznie stwierdzić, co najbardziej przyczyniło się do spadku długości śledzia w ostatnich latach.
 # Biblioteki
 W projekcie zostały użyte następujące biblioteki
 ```{r}
@@ -45,20 +46,20 @@ Najpierw sprawdzam jaki jest stosunek wierszy z brakującymi wartościami do wsz
 sum(is.na(data))/nrow(data)
 data<-na.aggregate(data)
 ```
-#Podsumowanie danych
+# Podsumowanie danych
 Dane składają się z ponad 52 tysięcy wierszy. Wyliczam cechy statystyczne atrybutów.
 ```{r}
 dim(data)
 summary(data)
 ```
-#Rozkłąd atrybutów
+# Rozkłąd atrybutów
 ```{r}
 for (col in 1:ncol(data)) {
    hist(data[,col],main = names(data[col]))
 }
 ```
 
-#Korelacja
+# Korelacja
 Analizując macierz korelacji można wyłonić najbardziej skorelowane pary atrybutów. Są to chel1-lcop1, chel2-lcop2 oraz fbar-cumf. Mocno skorelowane dane wprowadzają niepotrzebną redundancję, dlatego w dalszej analizie wykluczam atrybuty lcop1,lcop2 oraz cumf. Pozbędę się także wiedzy o miesiącu, który jest cykliczny i wykazuje blisko zerową korelację z długością śledzia. Najbardziej skorelowany atrybut z długością to średnia temperatura wody przy powierzchni.
 ```{r}
 ggcorr(data,label = TRUE,label_round = 1)
@@ -116,7 +117,7 @@ y_test = testing$length
 
 trcontrol = trainControl(
   method = "cv",
-  number = 2,  
+  number = 10,  
   allowParallel = TRUE,
   verboseIter = FALSE,
   returnData = FALSE)
@@ -156,5 +157,3 @@ ggplot(df, aes(year)) +
 
 Lustrzany obraz wykresów potwierdza stwierdzoną wcześniej ujemną korelację.
 
-#Wnioski
-Analiza statystyczna, wizualizacja danych oraz wytrenowanie modelu predykcyjnego pozwoliło potwierdzić spadek w rozmiarze śledzia na przestrzeni lat; określić moment, w którym ten trend nastąpił oraz co miało na niego największy wpływ. Zbadanie korealcji pomiędzy atrybutami pozwoliło usunąć z dalszej analizy mało znaczące atrybuty. 
